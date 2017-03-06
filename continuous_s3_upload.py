@@ -22,7 +22,8 @@ import boto3
 import glob
 import numpy as np
 
-import config.py
+import config
+
 AWS_ACCESS_KEY_ID = config.AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY = config.AWS_SECRET_ACCESS_KEY
 UNITY_ASSETS = config.UNITY_ASSETS
@@ -34,12 +35,16 @@ def s3_upload(filename, key):
     transfer = S3Transfer(client)
     print("About to upload: {0}".format(key))
     transfer.upload_file(filename, 'geometrical-images', key)
+    print("\tdone uploading")
 
 
-def pickle_numpy(folder):
+def pickle_numpy(folder, size):
     """ load all png images under folder, convert each to a numpy array and return the concatenation
     of all of them. Returned array has one extra dimension than each png since they are concatenated
     allong dimension 0 representing time
+
+    Before concatenating all pngs we clip to the center part of each image, extracted patch will be
+    of shape size x size
     """
     frames = []
     pngs = glob.glob(os.path.join(folder, '*.png'))
@@ -51,8 +56,15 @@ def pickle_numpy(folder):
     if len(pngs) == 24:
         for png in pngs:
             frame = Image.open(png)
-            new_size = (1,) + frame.size + (3,)
+            width, height = frame.size
+            new_size = (1, width, height, 3)
             frame = np.array(list(frame.getdata())).reshape(new_size)
+
+            x0 = width // 2 - size // 2
+            x1 = x0 + size
+            y0 = height // 2 - size // 2
+            y1 = y0 + size
+            frame = frame[:, x0:x1, y0:y1, :] 
             frames.append(frame)
 
         array = np.concatenate(frames)
@@ -60,7 +72,19 @@ def pickle_numpy(folder):
     with open(temp_file, 'wb') as fid:
         pickle.dump(array, fid)
 
+    print('size of ndarray is {0}'.format(array.shape))
     return temp_file
+
+
+def clean(folder):
+    import pudb
+    pudb.set_trace()
+    files = glob.glob(os.path.join(folder, '*'))
+
+    for f in files:
+        os.unlink(f)
+
+    os.rmdir(folder)
 
 
 def main():
@@ -71,16 +95,14 @@ def main():
     """
     # figure out all the folders of the from UNITY_ASSETS/#, each one contains all png images
     # forming a clip
-    import pudb
-    pudb.set_trace()
     folders = glob.glob(os.path.join(UNITY_ASSETS, '*'))
 
     for i, folder in enumerate(folders):
-        pickled_array = pickle_numpy(folder)
+        pickled_array = pickle_numpy(folder, 128)
         key = os.path.join(S3_PREFIX, "{0}".format(i).zfill(5) + '.pkl')
 
         s3_upload(pickled_array, key)
-        os.rmdir(folder)
+        clean(folder)
         
 
 if __name__ == "__main__":
