@@ -3,8 +3,16 @@ continuous_s3_upload.py
 
 This script is designed to upload all images in UNITY_ASSETS folder to s3
 
+When running Unity code, we generate
+/Users/pablo/Documents/Micelaneous/Scripts/Unity_support/Images/rotation/<number>/*.png
+
+This script will (given a 'number' identifying a folder with images):
+    load all images as numpy arrays
+    concatenate them along dimension 0  (making a 4D array, time, width, height, RGB)
+    upload them to s3
+
 """
-import cPickle as pickle
+import _pickle as pickle
 import os
 from PIL import Image
 import tempfile
@@ -12,23 +20,29 @@ import tempfile
 from boto3.s3.transfer import S3Transfer
 import boto3
 import glob
+import numpy as np
 
-AWS_ACCESS_KEY_ID = 'AKIAJ6MWTVEO2NFYGUMQ'
-AWS_SECRET_ACCESS_KEY = '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'
-UNITY_ASSETS = '/Users/pablo/Documents/Unity/Rotating Objects/Assets/Images/rotation'
-S3_PREFIX = 'rotation'
+import config.py
+AWS_ACCESS_KEY_ID = config.AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY = config.AWS_SECRET_ACCESS_KEY
+UNITY_ASSETS = config.UNITY_ASSETS
+S3_PREFIX = config.S3_PREFIX
 
-
-def s3_upload(filename):
+def s3_upload(filename, key):
+    """ Upload local file 'filename' to s3 using S#_PREFIX/<name> format """
     client = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID,aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
     transfer = S3Transfer(client)
-    key = os.path.basename(filename).replace('_', '/')
+    print("About to upload: {0}".format(key))
     transfer.upload_file(filename, 'geometrical-images', key)
 
 
-def to_numpy(clip_num):
+def pickle_numpy(folder):
+    """ load all png images under folder, convert each to a numpy array and return the concatenation
+    of all of them. Returned array has one extra dimension than each png since they are concatenated
+    allong dimension 0 representing time
+    """
     frames = []
-    pngs = glob.glob(os.path.join(UNITY_ASSETS, '{0}_{1}_*.png'.format(S3_PREFIX, clip_num)))
+    pngs = glob.glob(os.path.join(folder, '*.png'))
 
     _, temp_file = tempfile.mkstemp(suffix=".png")
 
@@ -44,22 +58,30 @@ def to_numpy(clip_num):
         array = np.concatenate(frames)
 
     with open(temp_file, 'wb') as fid:
-        pickle(array, fid)
+        pickle.dump(array, fid)
 
     return temp_file
 
 
 def main():
+    """ For each folder under UNITY_ASSETS (each folder contains 24 pngs)
+        convert all 24 pngs to a numpy array of shape (1, 24, width, height, RGB)
+        pickle the array to a local file
+        upload the local file to s3 under something like rotation/00010.pkl
+    """
+    # figure out all the folders of the from UNITY_ASSETS/#, each one contains all png images
+    # forming a clip
+    import pudb
+    pudb.set_trace()
     folders = glob.glob(os.path.join(UNITY_ASSETS, '*'))
 
-    for folder in folders:
-        pickled_array = to_numpy(folder)
-        s3_upload(f)
-        os.unlink(f)
+    for i, folder in enumerate(folders):
+        pickled_array = pickle_numpy(folder)
+        key = os.path.join(S3_PREFIX, "{0}".format(i).zfill(5) + '.pkl')
 
-        if os.path.isfile(f + ".meta"):
-            os.unlink(f + ".meta")
-
+        s3_upload(pickled_array, key)
+        os.rmdir(folder)
+        
 
 if __name__ == "__main__":
     main()
