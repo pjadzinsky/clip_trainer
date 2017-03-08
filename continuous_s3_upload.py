@@ -97,8 +97,9 @@ def main():
     # forming a clip
     folders = glob.glob(os.path.join(UNITY_ASSETS, '*'))
 
+    size = 150
     for i, folder in enumerate(folders):
-        pickled_array = pickle_numpy(folder, 128)
+        pickled_array = pickle_numpy(folder, 150)
         key = os.path.join(S3_PREFIX, "{0}".format(i).zfill(5) + '.pkl')
 
         s3_upload(pickled_array, key)
