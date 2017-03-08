@@ -49,8 +49,6 @@ def pickle_numpy(folder, size):
     frames = []
     pngs = glob.glob(os.path.join(folder, '*.png'))
 
-    _, temp_file = tempfile.mkstemp(suffix=".png")
-
     frames = []
     array = None
     if len(pngs) == 24:
@@ -69,16 +67,18 @@ def pickle_numpy(folder, size):
 
         array = np.concatenate(frames)
 
-    with open(temp_file, 'wb') as fid:
-        pickle.dump(array, fid)
+    if array is not None:
+        _, temp_file = tempfile.mkstemp(suffix=".png")
+        with open(temp_file, 'wb') as fid:
+            pickle.dump(array, fid)
 
-    print('size of ndarray is {0}'.format(array.shape))
-    return temp_file
+        print('size of ndarray is {0}'.format(array.shape))
+        return temp_file
+
+    return None
 
 
 def clean(folder):
-    import pudb
-    pudb.set_trace()
     files = glob.glob(os.path.join(folder, '*'))
 
     for f in files:
@@ -100,10 +100,12 @@ def main():
     size = 150
     for i, folder in enumerate(folders):
         pickled_array = pickle_numpy(folder, 150)
-        key = os.path.join(S3_PREFIX, "{0}".format(i).zfill(5) + '.pkl')
+        if pickled_array:
+            key = os.path.join(S3_PREFIX, "{0}".format(i).zfill(5) + '.pkl')
 
-        s3_upload(pickled_array, key)
-        clean(folder)
+            s3_upload(pickled_array, key)
+            print("just uploaded key:", key)
+            clean(folder)
         
 
 if __name__ == "__main__":
