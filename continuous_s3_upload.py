@@ -28,6 +28,7 @@ AWS_ACCESS_KEY_ID = config.AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY = config.AWS_SECRET_ACCESS_KEY
 UNITY_ASSETS = config.UNITY_ASSETS
 S3_PREFIX = config.S3_PREFIX
+BUCKET = config.BUCKET
 
 def s3_upload(filename, key):
     """ Upload local file 'filename' to s3 using S#_PREFIX/<name> format """
@@ -78,6 +79,21 @@ def pickle_numpy(folder, size):
     return None
 
 
+def items_in_s3(prefix):
+    """ Return number of examples in the given prefix"""
+    print(1)
+    client = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID,aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+    paginator = client.get_paginator('list_objects')
+    page_iterator = paginator.paginate(Bucket=BUCKET, Prefix=prefix)
+
+    cnt = 0
+    for page in page_iterator:
+        if 'Contents' in page:
+            cnt += len(page['Contents'])
+    
+    return cnt
+
+
 def clean(folder):
     files = glob.glob(os.path.join(folder, '*'))
 
@@ -98,10 +114,15 @@ def main():
     folders = glob.glob(os.path.join(UNITY_ASSETS, '*'))
 
     size = 150
+    current_items_in_s3 = items_in_s3(S3_PREFIX)
+
     for i, folder in enumerate(folders):
+        print('working on', folder)
         pickled_array = pickle_numpy(folder, 150)
+        next_s3_item = current_items_in_s3 + i 
+
         if pickled_array:
-            key = os.path.join(S3_PREFIX, "{0}".format(i).zfill(5) + '.pkl')
+            key = os.path.join(S3_PREFIX, "{0}".format(next_s3_item).zfill(5) + '.pkl')
 
             s3_upload(pickled_array, key)
             print("just uploaded key:", key)
