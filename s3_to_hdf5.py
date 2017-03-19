@@ -1,4 +1,4 @@
-""" s3_to_hdf5.py
+""" s3_and_hdf5.py
 
 Generate hdf5 files with clips from data in s3
 
@@ -22,7 +22,6 @@ S3_PREFIX = config.S3_PREFIX
 BUCKET = config.BUCKET
 
 def main(prefix):
-    print(1)
     client = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID,aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
     paginator = client.get_paginator('list_objects')
     page_iterator = paginator.paginate(Bucket=BUCKET, Prefix=prefix)
@@ -52,10 +51,9 @@ def main(prefix):
 
     # store all features/labels in a temp hdf5
     _, temp_h5py = tempfile.mkstemp(suffix='.hdf5')
-    fid = h5py.File(temp_h5py)
-    fid['features'] = features
-    fid['labels'] = labels
-    fid.close
+    with h5py.File(temp_h5py) as fid:
+        fid['features'] = features
+        fid['labels'] = labels
 
     # upload to s3
     client.upload_file(temp_h5py, BUCKET, 'clips.hdf5')
