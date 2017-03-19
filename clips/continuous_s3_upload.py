@@ -12,7 +12,10 @@ This script will (given a 'number' identifying a folder with images):
     upload them to s3
 
 """
-import _pickle as pickle
+try:
+    import _pickle as pickle
+except:
+    import cPickle as pickle
 import os
 from PIL import Image
 import tempfile
@@ -22,7 +25,7 @@ import boto3
 import glob
 import numpy as np
 
-import config
+from clips import config
 
 AWS_ACCESS_KEY_ID = config.AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY = config.AWS_SECRET_ACCESS_KEY

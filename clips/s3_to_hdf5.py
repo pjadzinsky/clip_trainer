@@ -13,7 +13,7 @@ import h5py
 import tempfile
 import _pickle as pickle
 
-import config
+from clips import config
 
 AWS_ACCESS_KEY_ID = config.AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY = config.AWS_SECRET_ACCESS_KEY

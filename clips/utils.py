@@ -8,7 +8,7 @@ import tempfile
 import boto3
 import h5py
 
-import config
+from clips import config
 
 AWS_ACCESS_KEY_ID = config.AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY = config.AWS_SECRET_ACCESS_KEY
